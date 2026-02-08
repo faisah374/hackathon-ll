@@ -1,0 +1,13 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+instance
+.pytest_cache/
+migrations/
+*.sqlite3
+*.log
+.env.local
+.env.production
+.env
