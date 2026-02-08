@@ -1,0 +1,291 @@
+openapi: 3.0.3
+info:
+  title: AI-Powered Conversational Chatbot API
+  description: API for managing tasks through natural language conversation
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Development server
+
+paths:
+  /chat:
+    post:
+      summary: Send a message to the AI chatbot
+      description: Process user message and return AI response with task operations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+                - user_id
+              properties:
+                message:
+                  type: string
+                  description: The user's message in natural language
+                  example: "Add a task to buy milk"
+                user_id:
+                  type: string
+                  description: The authenticated user's ID
+                  example: "user_12345"
+                conversation_id:
+                  type: integer
+                  description: Optional conversation ID to continue existing conversation
+                  example: 1
+      responses:
+        '200':
+          description: Successful response from the AI agent
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - response
+                  - conversation_id
+                  - tool_calls
+                properties:
+                  response:
+                    type: string
+                    description: The AI agent's response to the user
+                    example: "I've added the task 'buy milk' to your list."
+                  conversation_id:
+                    type: integer
+                    description: The conversation ID (new or existing)
+                    example: 1
+                  tool_calls:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tool_name:
+                          type: string
+                          example: "add_task"
+                        parameters:
+                          type: object
+                          example: {"title": "buy milk", "user_id": "user_12345"}
+                    description: List of MCP tools called during processing
+        '401':
+          description: Unauthorized request
+        '500':
+          description: Internal server error
+      security:
+        - jwt_auth: []
+
+  /tasks:
+    get:
+      summary: List user's tasks
+      description: Retrieve all tasks for the authenticated user
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, pending, completed]
+          description: Filter tasks by completion status
+      responses:
+        '200':
+          description: List of user's tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - tasks
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized request
+      security:
+        - jwt_auth: []
+    post:
+      summary: Create a new task
+      description: Create a task directly (alternative to chat interface)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Invalid task data
+        '401':
+          description: Unauthorized request
+      security:
+        - jwt_auth: []
+
+  /tasks/{id}:
+    get:
+      summary: Get a specific task
+      description: Retrieve a specific task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Task ID
+      responses:
+        '200':
+          description: Task details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized request
+        '404':
+          description: Task not found
+      security:
+        - jwt_auth: []
+    put:
+      summary: Update a task
+      description: Modify an existing task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Task ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          description: Invalid task data
+        '401':
+          description: Unauthorized request
+        '404':
+          description: Task not found
+      security:
+        - jwt_auth: []
+    delete:
+      summary: Delete a task
+      description: Remove a task permanently
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Task ID
+      responses:
+        '204':
+          description: Task deleted successfully
+        '401':
+          description: Unauthorized request
+        '404':
+          description: Task not found
+      security:
+        - jwt_auth: []
+
+  /tasks/{id}/complete:
+    post:
+      summary: Mark task as complete
+      description: Update task status to completed
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Task ID
+      responses:
+        '200':
+          description: Task marked as complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '401':
+          description: Unauthorized request
+        '404':
+          description: Task not found
+      security:
+        - jwt_auth: []
+
+components:
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - user_id
+        - title
+        - completed
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          description: Unique task identifier
+          example: 1
+        user_id:
+          type: string
+          description: User identifier this task belongs to
+          example: "user_12345"
+        title:
+          type: string
+          description: Task title
+          example: "Buy milk"
+        description:
+          type: string
+          description: Optional task description
+          example: "From the grocery list"
+        completed:
+          type: boolean
+          description: Whether the task is completed
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: When the task was created
+          example: "2023-10-20T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: When the task was last updated
+          example: "2023-10-20T10:00:00Z"
+
+    TaskInput:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Task title (required)
+          example: "Buy milk"
+        description:
+          type: string
+          description: Optional task description
+          example: "From the grocery list"
+
+  securitySchemes:
+    jwt_auth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for user authentication
